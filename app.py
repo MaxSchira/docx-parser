@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 from docx import Document
-from lxml import etree
 
 app = Flask(__name__)
 
@@ -10,28 +9,55 @@ def parse_docx():
     doc = Document(file)
     extracted_text = []
 
-    # 1️⃣ Fließtext extrahieren (normale Absätze)
+    # 1️⃣ Fließtext extrahieren (inkl. Formatierungen)
     for para in doc.paragraphs:
         text = para.text.strip()
+        styles = []
+        for run in para.runs:
+            if run.bold:
+                styles.append("bold")
+            if run.italic:
+                styles.append("italic")
+            if run.underline:
+                styles.append("underline")
         if text:
-            extracted_text.append({"text": text, "style": ["paragraph"]})
+            extracted_text.append({"text": text, "style": styles if styles else ["paragraph"]})
 
-    # 2️⃣ Tabellen auslesen (z. B. Getränke- und Weinliste)
+    # 2️⃣ Tabellen auslesen (inkl. Formatierung)
     for table in doc.tables:
         for row in table.rows:
             row_text = []
+            row_styles = []
             for cell in row.cells:
                 cell_text = cell.text.strip()
+                cell_styles = []
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        if run.bold:
+                            cell_styles.append("bold")
+                        if run.italic:
+                            cell_styles.append("italic")
+                        if run.underline:
+                            cell_styles.append("underline")
                 if cell_text:
                     row_text.append(cell_text)
+                    row_styles.append(cell_styles if cell_styles else ["table"])
             if row_text:
-                extracted_text.append({"text": " | ".join(row_text), "style": ["table"]})
+                extracted_text.append({"text": " | ".join(row_text), "style": row_styles})
 
-    # 3️⃣ Text aus Textboxen extrahieren
-    for shape in doc.element.xpath("//w:p"):  # Alle Absätze in Shapes durchsuchen
+    # 3️⃣ Text aus Textboxen extrahieren (inkl. Formatierung)
+    for shape in doc.element.xpath("//w:p"):
         text = " ".join([t.text for t in shape.xpath(".//w:t") if t.text]).strip()
+        styles = []
+        for run in shape.xpath(".//w:r"):
+            if run.xpath(".//w:b"):
+                styles.append("bold")
+            if run.xpath(".//w:i"):
+                styles.append("italic")
+            if run.xpath(".//w:u"):
+                styles.append("underline")
         if text:
-            extracted_text.append({"text": text, "style": ["textbox"]})
+            extracted_text.append({"text": text, "style": styles if styles else ["textbox"]})
 
     return jsonify(extracted_text)
 
