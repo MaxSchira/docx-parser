@@ -9,17 +9,21 @@ def parse_docx():
     doc = Document(file)
     extracted_text = []
 
+    # 1️ Fließtext extrahieren
     for para in doc.paragraphs:
-        styles = []
-        if para.runs:
-            for run in para.runs:
-                if run.bold:
-                    styles.append("bold")
-                if run.italic:
-                    styles.append("italic")
-                if run.underline:
-                    styles.append("underline")
-        extracted_text.append({"text": para.text, "style": styles})
+        extracted_text.append({"text": para.text, "style": []})
+
+    # 2️ Text aus Textboxen extrahieren
+    for shape in doc.inline_shapes:
+        if shape._element.xpath(".//w:t"):
+            text = " ".join([t.text for t in shape._element.xpath(".//w:t")])
+            extracted_text.append({"text": text, "style": ["textbox"]})
+
+    # 3 Text aus Tabellen extrahieren
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                extracted_text.append({"text": cell.text, "style": ["table"]})
 
     return jsonify(extracted_text)
 
