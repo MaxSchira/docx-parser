@@ -31,8 +31,8 @@ def parse_docx():
         }
         for run in para.runs:
             if run.font:
-                styles["font"] = run.font.name if run.font.name else "Default"
-                styles["size"] = run.font.size.pt if run.font.size else None
+                styles["font"] = run.font.name if run.font and run.font.name else "Calibri"
+                styles["size"] = run.font.size.pt if run.font and run.font.size else None
                 styles["bold"] = run.bold if run.bold else False
                 styles["italic"] = run.italic if run.italic else False
                 styles["underline"] = run.underline if run.underline else False
@@ -60,8 +60,8 @@ def parse_docx():
                 for para in cell.paragraphs:
                     for run in para.runs:
                         if run.font:
-                            cell_styles["font"] = run.font.name if run.font.name else "Default"
-                            cell_styles["size"] = run.font.size.pt if run.font.size else None
+                            cell_styles["font"] = run.font.name if run.font and run.font.name else "Calibri"
+                            cell_styles["size"] = run.font.size.pt if run.font and run.font.size else None
                             cell_styles["bold"] = run.bold if run.bold else False
                             cell_styles["italic"] = run.italic if run.italic else False
                             cell_styles["underline"] = run.underline if run.underline else False
@@ -76,7 +76,7 @@ def parse_docx():
     for shape in doc.element.xpath("//w:p"):
         text = " ".join([t.text for t in shape.xpath(".//w:t") if t.text]).strip()
         styles = {
-            "font": None,
+            "font": "Calibri",
             "size": None,
             "bold": False,
             "italic": False,
@@ -95,6 +95,27 @@ def parse_docx():
         if text:
             extracted_text.append({"text": text, "type": "textbox", "style": styles})
             debug_counts["textboxes_extracted"] += 1  # Debug-Zähler erhöhen
+
+    # 4️⃣ Filter für doppelte Texte (z. B. Tabelle UND Textbox)
+    seen_texts = {}  # Dictionary speichert Text & seine Strukturen
+    filtered_data = []
+
+    for entry in extracted_text:
+        text_content = entry["text"].strip()
+        entry_type = entry["type"]
+
+        if text_content in seen_texts:
+            # Falls der Text bereits existiert, füge die neue Struktur zum "type"-Array hinzu
+            if entry_type not in seen_texts[text_content]["type"]:
+                seen_texts[text_content]["type"].append(entry_type)
+        else:
+            # Falls der Text neu ist, speichere ihn mit seiner Struktur
+            seen_texts[text_content] = entry
+            seen_texts[text_content]["type"] = [entry_type]
+            filtered_data.append(seen_texts[text_content])
+
+    # Ersetze das alte extracted_text durch die gefilterte & zusammengeführte Liste
+    extracted_text = filtered_data
 
     # Debugging-Output zurückgeben
     return jsonify({
