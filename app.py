@@ -18,7 +18,7 @@ def parse_docx():
 
             styles = {
                 "font": run.font.name if run.font and run.font.name else "Calibri",
-                "size": run.font.size.pt if run.font and run.font.size else None,
+                "size": run.font.size.pt if run.font and run.font.size else 12,
                 "bold": run.bold if run.bold else False,
                 "italic": run.italic if run.italic else False,
                 "underline": run.underline if run.underline else False,
