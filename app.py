@@ -64,6 +64,6 @@ def generate_docx():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# **SERVER-START (Einrückung korrigiert!)**
 if __name__ == '__main__':
-app.run(host="0.0.0.0", port=10000)
-
+    app.run(host="0.0.0.0", port=10000)
