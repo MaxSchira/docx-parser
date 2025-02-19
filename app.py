@@ -42,7 +42,6 @@ def generate_docx():
         print("Received Headers:", request.headers)
         print("Received Content-Type:", request.content_type)
         print("Received Form Keys:", request.form.keys())
-        print("Received JSON Raw:", request.data.decode('utf-8'))  # Falls JSON kommt
 
         # JSON sicher parsen, falls es als String kommt
         if request.content_type == "application/json":
@@ -52,9 +51,13 @@ def generate_docx():
         else:
             return jsonify({"error": "Unsupported Media Type"}), 415
 
-        updated_speisekarte = raw_data.get("updated_speisekarte", [])
+        # Falls raw_data eine Liste ist, dann setze sie direkt als updated_speisekarte
+        if isinstance(raw_data, list):
+            updated_speisekarte = raw_data
+        else:
+            updated_speisekarte = raw_data.get("updated_speisekarte", [])
 
-        # Statt ein neues Dokument zu erstellen -> Bestehendes öffnen
+        # Bestehendes Dokument öffnen
         file = request.files.get("file")
         if not file:
             return jsonify({"error": "No file provided!"}), 400
