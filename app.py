@@ -1,3 +1,5 @@
+import json
+
 from flask import Flask, request, jsonify, send_file
 from docx import Document
 from docx.shared import RGBColor, Pt
@@ -34,33 +36,30 @@ def parse_docx():
 #  ENDPOINT 2: TEXT ERSETZEN UND DOCX GENERIEREN
 @app.route('/generate-docx', methods=['POST'])
 def generate_docx():
-    data = request.get_json()
-    updated_speisekarte = data.get("updated_speisekarte", [])
+    try:
+        # JSON sicher parsen, falls es als String kommt
+        raw_data = request.get_json()
+        if isinstance(raw_data, str):
+            raw_data = json.loads(raw_data)
 
-    doc = Document()
-    
-    for item in updated_speisekarte:
-        para = doc.add_paragraph()
-        run = para.add_run(item["text"])
-        
-        # **Formatierung aus JSON übernehmen**
-        style = item["style"]
-        run.bold = style["bold"]
-        run.italic = style["italic"]
-        run.underline = style["underline"]
-        run.font.name = style["font"]
-        run.font.size = Pt(style["size"])
-        if style["color"] and style["color"] != "#000000":
-            rgb_color = RGBColor(int(style["color"][1:3], 16), int(style["color"][3:5], 16), int(style["color"][5:7], 16))
-            run.font.color.rgb = rgb_color
+        updated_speisekarte = raw_data.get("updated_speisekarte", [])
 
-    # **Datei in den Speicher speichern**
-    output = BytesIO()
-    doc.save(output)
-    output.seek(0)
+        doc = Document()
 
-    return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                     as_attachment=True, download_name="updated_menu.docx")
+        for item in updated_speisekarte:
+            para = doc.add_paragraph()
+            run = para.add_run(item["text"])
+            run.bold = item["style"]["bold"]
+            run.italic = item["style"]["italic"]
+            run.underline = item["style"]["underline"]
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=10000)
+        # **Datei in den Speicher statt auf die Festplatte**
+        output = BytesIO()
+        doc.save(output)
+        output.seek(0)
+
+        return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                         as_attachment=True, download_name="updated_menu.docx")
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
