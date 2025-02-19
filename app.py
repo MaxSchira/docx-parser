@@ -69,8 +69,13 @@ def generate_docx():
             for run in para.runs:
                 run.text = ""
                 
-        # Entfernt leere Absätze aus dem ursprünglichen Dokument
-        doc.paragraphs = [p for p in doc.paragraphs if any(run.text.strip() for run in p.runs)]
+        
+        # Alle leeren Absätze sammeln
+        empty_paragraphs = [p for p in doc.paragraphs if not any(run.text.strip() for run in p.runs)]
+
+        # Leere Absätze aus dem Dokument entfernen
+        for p in empty_paragraphs:
+            p._element.getparent().remove(p._element)
 
         # Aktualisierten Text in bestehende Paragraphs einfügen
         current_para = None  # Aktueller Absatz speichern
