@@ -70,8 +70,12 @@ def generate_docx():
                 run.text = ""
 
         # Aktualisierten Text in bestehende Paragraphs einfügen
-        for para, item in zip(doc.paragraphs, updated_speisekarte):
-            run = para.add_run(item["text"])
+        current_para = None
+
+        for item in updated_speisekarte:
+            if current_para is None or item["type"] == "paragraph":
+                current_para = doc.add_paragraph()  # Neuer Absatz für Absätze
+            run = current_para.add_run(item["text"])
             run.bold = item["style"]["bold"]
             run.italic = item["style"]["italic"]
             run.underline = item["style"]["underline"]
