@@ -7,7 +7,7 @@ from io import BytesIO
 
 app = Flask(__name__)
 
-#  ENDPOINT 1: DOCX-PARSING
+# ENDPOINT 1: DOCX-PARSING
 @app.route('/parse-docx', methods=['POST'])
 def parse_docx():
     file = request.files['file']
@@ -33,19 +33,32 @@ def parse_docx():
 
     return jsonify({"extracted_data": extracted_text})
 
-#  ENDPOINT 2: TEXT ERSETZEN UND DOCX GENERIEREN
+# ENDPOINT 2: TEXT ERSETZEN UND DOCX GENERIEREN
 @app.route('/generate-docx', methods=['POST'])
 def generate_docx():
     try:
+        # Debugging-Logs
+        print("\nREQUEST RECEIVED")
+        print("Received Headers:", request.headers)
+        print("Received Content-Type:", request.content_type)
+        print("Received Form Keys:", request.form.keys())
+        print("Received JSON Raw:", request.data.decode('utf-8'))  # Falls JSON kommt
+
         # JSON sicher parsen, falls es als String kommt
-        raw_data = request.get_json()
-        if isinstance(raw_data, str):
-            raw_data = json.loads(raw_data)
+        if request.content_type == "application/json":
+            raw_data = request.get_json()
+        elif "multipart/form-data" in request.content_type:
+            raw_data = json.loads(request.form["updated_speisekarte"])
+        else:
+            return jsonify({"error": "Unsupported Media Type"}), 415
 
         updated_speisekarte = raw_data.get("updated_speisekarte", [])
 
         # Statt ein neues Dokument zu erstellen -> Bestehendes öffnen
-        file = request.files["file"]
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"error": "No file provided!"}), 400
+        
         doc = Document(file)
 
         # Bestehenden Text entfernen
@@ -65,7 +78,7 @@ def generate_docx():
                 rgb = item["style"]["color"].lstrip("#")
                 run.font.color.rgb = RGBColor(int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
 
-        # **Datei in den Speicher statt auf die Festplatte**
+        # Datei im Speicher statt auf der Festplatte speichern
         output = BytesIO()
         doc.save(output)
         output.seek(0)
@@ -74,6 +87,8 @@ def generate_docx():
                          as_attachment=True, download_name="updated_menu.docx")
 
     except Exception as e:
+        print("\nERROR OCCURRED")
+        print(str(e))
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
