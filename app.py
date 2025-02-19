@@ -39,7 +39,9 @@ def generate_docx():
     try:
         # JSON sicher parsen, falls es als String kommt
         raw_data = request.get_json()
-        print("Received raw data:", raw_data)  # Debugging
+        print("RAW REQUEST DATA:", request.data.decode("utf-8"))
+        print("RAW JSON:", request.get_json())
+
         if isinstance(raw_data, str):
             raw_data = json.loads(raw_data)
 
