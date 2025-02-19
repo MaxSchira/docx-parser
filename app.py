@@ -39,19 +39,26 @@ def generate_docx():
     try:
         # JSON sicher parsen, falls es als String kommt
         raw_data = request.get_json()
+        print("Received raw data:", raw_data)  # Debugging
         if isinstance(raw_data, str):
             raw_data = json.loads(raw_data)
 
         updated_speisekarte = raw_data.get("updated_speisekarte", [])
 
+        if not isinstance(updated_speisekarte, list):  # Falls es kein Array ist
+            raise ValueError("updated_speisekarte muss eine Liste sein!")
+
         doc = Document()
 
         for item in updated_speisekarte:
+            if not isinstance(item, dict):  # Sicherstellen, dass es ein Dictionary ist
+                raise ValueError("Jedes Element in updated_speisekarte muss ein Dictionary sein!")
+
             para = doc.add_paragraph()
-            run = para.add_run(item["text"])
-            run.bold = item["style"]["bold"]
-            run.italic = item["style"]["italic"]
-            run.underline = item["style"]["underline"]
+            run = para.add_run(item.get("text", ""))  # Sicherer Zugriff auf "text"
+            run.bold = item.get("style", {}).get("bold", False)
+            run.italic = item.get("style", {}).get("italic", False)
+            run.underline = item.get("style", {}).get("underline", False)
 
         # **Datei in den Speicher statt auf die Festplatte**
         output = BytesIO()
@@ -62,6 +69,7 @@ def generate_docx():
                          as_attachment=True, download_name="updated_menu.docx")
 
     except Exception as e:
+        print("Error:", str(e))  # Fehlerausgabe in der Server-Console
         return jsonify({"error": str(e)}), 500
 
 # **SERVER-START (Einrückung korrigiert!)**
