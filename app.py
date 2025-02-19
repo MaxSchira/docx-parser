@@ -68,19 +68,26 @@ def generate_docx():
         for para in doc.paragraphs:
             for run in para.runs:
                 run.text = ""
+                
+        # Entfernt leere Absätze aus dem ursprünglichen Dokument
+        doc.paragraphs = [p for p in doc.paragraphs if any(run.text.strip() for run in p.runs)]
 
         # Aktualisierten Text in bestehende Paragraphs einfügen
-        current_para = None
+        current_para = None  # Aktueller Absatz speichern
 
         for item in updated_speisekarte:
+            # Falls es ein Paragraph ist oder der Absatz nicht existiert, neuen Absatz beginnen
             if current_para is None or item["type"] == "paragraph":
-                current_para = doc.add_paragraph()  # Neuer Absatz für Absätze
+                current_para = doc.add_paragraph()
+    
             run = current_para.add_run(item["text"])
             run.bold = item["style"]["bold"]
             run.italic = item["style"]["italic"]
             run.underline = item["style"]["underline"]
             run.font.name = item["style"]["font"]
             run.font.size = Pt(item["style"]["size"])
+
+            # Falls eine spezielle Farbe gesetzt ist, übernehmen
             if item["style"]["color"] != "#000000":
                 rgb = item["style"]["color"].lstrip("#")
                 run.font.color.rgb = RGBColor(int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
