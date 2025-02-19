@@ -13,8 +13,18 @@ def parse_docx():
     file = request.files['file']
     doc = Document(file)
     extracted_text = []
+    
+    # Absatz-Zähler für ID-Zuweisung
+    paragraph_counter = 0
 
     for para in doc.paragraphs:
+        paragraph_counter += 1  # ID für jeden Absatz
+        paragraph_data = {
+            "paragraph_id": paragraph_counter,
+            "is_empty": len(para.text.strip()) == 0,  # Prüfen, ob Absatz leer ist
+            "runs": []  # Enthält alle Runs dieses Absatzes
+        }
+
         for run in para.runs:
             text = run.text.strip()
             if not text:
@@ -29,7 +39,9 @@ def parse_docx():
                 "color": f"#{run.font.color.rgb}" if run.font.color and isinstance(run.font.color.rgb, RGBColor) else "#000000"
             }
 
-            extracted_text.append({"text": text, "type": "paragraph", "style": styles})
+            paragraph_data["runs"].append({"text": text, "style": styles})
+
+        extracted_text.append(paragraph_data)
 
     return jsonify({"extracted_data": extracted_text})
 
