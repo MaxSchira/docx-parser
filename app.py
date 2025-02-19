@@ -39,28 +39,31 @@ def generate_docx():
     try:
         # JSON sicher parsen, falls es als String kommt
         raw_data = request.get_json()
-        print("RAW REQUEST DATA:", request.data.decode("utf-8"))
-        print("RAW JSON:", request.get_json())
-
         if isinstance(raw_data, str):
             raw_data = json.loads(raw_data)
 
         updated_speisekarte = raw_data.get("updated_speisekarte", [])
 
-        if not isinstance(updated_speisekarte, list):  # Falls es kein Array ist
-            raise ValueError("updated_speisekarte muss eine Liste sein!")
+        # Statt ein neues Dokument zu erstellen -> Bestehendes öffnen
+        file = request.files["file"]
+        doc = Document(file)
 
-        doc = Document()
+        # Bestehenden Text entfernen
+        for para in doc.paragraphs:
+            for run in para.runs:
+                run.text = ""
 
-        for item in updated_speisekarte:
-            if not isinstance(item, dict):  # Sicherstellen, dass es ein Dictionary ist
-                raise ValueError("Jedes Element in updated_speisekarte muss ein Dictionary sein!")
-
-            para = doc.add_paragraph()
-            run = para.add_run(item.get("text", ""))  # Sicherer Zugriff auf "text"
-            run.bold = item.get("style", {}).get("bold", False)
-            run.italic = item.get("style", {}).get("italic", False)
-            run.underline = item.get("style", {}).get("underline", False)
+        # Aktualisierten Text in bestehende Paragraphs einfügen
+        for para, item in zip(doc.paragraphs, updated_speisekarte):
+            run = para.add_run(item["text"])
+            run.bold = item["style"]["bold"]
+            run.italic = item["style"]["italic"]
+            run.underline = item["style"]["underline"]
+            run.font.name = item["style"]["font"]
+            run.font.size = Pt(item["style"]["size"])
+            if item["style"]["color"] != "#000000":
+                rgb = item["style"]["color"].lstrip("#")
+                run.font.color.rgb = RGBColor(int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
 
         # **Datei in den Speicher statt auf die Festplatte**
         output = BytesIO()
@@ -71,9 +74,7 @@ def generate_docx():
                          as_attachment=True, download_name="updated_menu.docx")
 
     except Exception as e:
-        print("Error:", str(e))  # Fehlerausgabe in der Server-Console
         return jsonify({"error": str(e)}), 500
 
-# **SERVER-START (Einrückung korrigiert!)**
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
