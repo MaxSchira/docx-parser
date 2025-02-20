@@ -51,21 +51,18 @@ def generate_docx():
     try:
         # JSON-String aus form-data abrufen, falls nicht direkt als JSON gesendet
         raw_data = request.form.get("updated_speisekarte")
-        
         if raw_data:
-            app.logger.info("Received raw_data (string): %s", raw_data)  # Logge den rohen Input
             updated_speisekarte = json.loads(raw_data)  # String in JSON umwandeln
         else:
-            app.logger.error("Fehlende Speisekarte-Daten")
             return jsonify({"error": "Fehlende Speisekarte-Daten"}), 400
 
-        # Debug-Log: Struktur der empfangenen Speisekarte
-        app.logger.info("Parsed updated_speisekarte JSON: %s", json.dumps(updated_speisekarte, indent=2))
+        # Debugging-Ausgabe
+        print("DEBUG: Eingehende Speisekarte-Daten:")
+        print(json.dumps(updated_speisekarte, indent=2), flush=True)  # flush=True sorgt für sofortige Ausgabe
 
         # Datei abrufen
         file = request.files.get("file")
         if not file:
-            app.logger.error("Fehlende DOCX-Datei")
             return jsonify({"error": "Fehlende DOCX-Datei"}), 400
 
         doc = Document(file)
@@ -104,7 +101,6 @@ def generate_docx():
                          as_attachment=True, download_name="updated_menu.docx")
 
     except Exception as e:
-        app.logger.error("Fehler: %s", str(e))
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
