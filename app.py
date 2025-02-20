@@ -47,64 +47,47 @@ def parse_docx():
 @app.route('/generate-docx', methods=['POST'])
 def generate_docx():
     try:
-        # JSON aus Form-Data holen
-        updated_speisekarte_json = request.form.get("updated_speisekarte", "[]")
+        # JSON sicher parsen, falls es als String kommt
+        raw_data = request.get_json()
+        if isinstance(raw_data, str):
+            raw_data = json.loads(raw_data)
 
-        # JSON-Daten parsen und sicherstellen, dass es eine Liste ist
-        try:
-            updated_speisekarte = json.loads(updated_speisekarte_json)
-            if not isinstance(updated_speisekarte, list):
-                raise ValueError("updated_speisekarte ist keine Liste.")
-        except json.JSONDecodeError:
-            return jsonify({"error": "Fehler beim Parsen von updated_speisekarte"}), 400
+        updated_speisekarte = raw_data.get("updated_speisekarte", [])
 
-        # Bestehendes DOCX-Dokument öffnen
-        file = request.files.get("file")
-        if not file:
-            return jsonify({"error": "Keine Datei empfangen"}), 400
-
+        # Bestehendes Dokument öffnen
+        file = request.files["file"]
         doc = Document(file)
 
-        # Vorherigen Text entfernen
-        for para in doc.paragraphs:
-            for run in para.runs:
-                run.text = ""
+        # Entferne alle bestehenden Absätze
+        while len(doc.paragraphs) > 0:
+            p = doc.paragraphs[0]  # Immer das erste Element nehmen und entfernen
+            p._element.getparent().remove(p._element)
 
         # Aktualisierte Speisekarte einfügen
         for item in updated_speisekarte:
-            # Leere Absätze behandeln
             if item.get("is_empty", False):
-                doc.add_paragraph("")  # Nur wenn nötig
+                doc.add_paragraph("")  # Leere Zeile nur hinzufügen, wenn nötig
                 continue
-    
-            # Falls Struktur direkt "text" enthält (wie Weinkarte), konvertiere in runs-Format
-            if "text" in item:
-                item = {"runs": [{"text": item["text"], "style": item.get("style", {})}]}
-
-            para = doc.add_paragraph()
-            for run_data in item["runs"]:
+            
+            para = doc.add_paragraph()  # Neuen Absatz für diesen Eintrag erstellen
+            for run_data in item.get("runs", []):
                 run = para.add_run(run_data["text"])
-        
-                # Formatierungen setzen
-                style = run_data.get("style", {})
-                run.bold = style.get("bold", False)
-                run.italic = style.get("italic", False)
-                run.underline = style.get("underline", False)
-                run.font.name = style.get("font", "Futura Medium")
-                run.font.size = Pt(style.get("size", 12))
-        
-                if "color" in style and style["color"] != "#000000":
-                    rgb = style["color"].lstrip("#")
+                run.bold = run_data["style"]["bold"]
+                run.italic = run_data["style"]["italic"]
+                run.underline = run_data["style"]["underline"]
+                run.font.name = run_data["style"]["font"]
+                run.font.size = Pt(run_data["style"]["size"])
+                
+                # Farbe setzen
+                if run_data["style"]["color"] != "#000000":
+                    rgb = run_data["style"]["color"].lstrip("#")
                     run.font.color.rgb = RGBColor(int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
 
-        # Datei speichern und zurücksenden
+        # Datei in den Speicher statt auf die Festplatte speichern
         output = BytesIO()
         doc.save(output)
         output.seek(0)
 
-        #debug log
-        print("Received updated_speisekarte:", updated_speisekarte) 
-        
         return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                          as_attachment=True, download_name="updated_menu.docx")
 
