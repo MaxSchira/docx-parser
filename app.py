@@ -1,5 +1,4 @@
 import json
-
 from flask import Flask, request, jsonify, send_file
 from docx import Document
 from docx.shared import RGBColor, Pt
@@ -49,26 +48,23 @@ def parse_docx():
 @app.route('/generate-docx', methods=['POST'])
 def generate_docx():
     try:
-        # JSON sicher parsen, falls es als String kommt
-        raw_data = request.get_json()
-        if isinstance(raw_data, str):
-            raw_data = json.loads(raw_data)
+        # JSON aus Form-Data auslesen
+        raw_data = json.loads(request.form["updated_speisekarte"])
 
-        updated_speisekarte = raw_data.get("updated_speisekarte", [])
-
-        # Bestehendes Dokument öffnen
+        # DOCX-Datei aus der Form-Data extrahieren
         file = request.files["file"]
         doc = Document(file)
 
-        # Bestehenden Text leeren
+        # Vorherigen Inhalt löschen
         for para in doc.paragraphs:
-            para.clear()
+            for run in para.runs:
+                run.text = ""
 
-        # Aktualisierte Speisekarte einfügen
-        doc.paragraphs.clear()  # Vorherige Absätze entfernen
-        for item in updated_speisekarte:
+        # Neue Inhalte aus JSON-Daten einfügen
+        doc.paragraphs.clear()  # Alte Absätze entfernen
+        for item in raw_data:
             para = doc.add_paragraph()
-            
+
             if item.get("is_empty", False):  
                 para.add_run("")  # Leere Zeile
                 continue
