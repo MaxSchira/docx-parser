@@ -49,67 +49,43 @@ def parse_docx():
 @app.route('/generate-docx', methods=['POST'])
 def generate_docx():
     try:
-        # Debugging-Logs
-        print("\nREQUEST RECEIVED")
-        print("Received Headers:", request.headers)
-        print("Received Content-Type:", request.content_type)
-        print("Received Form Keys:", request.form.keys())
-
         # JSON sicher parsen, falls es als String kommt
-        if request.content_type == "application/json":
-            raw_data = request.get_json()
-        elif "multipart/form-data" in request.content_type:
-            raw_data = json.loads(request.form["updated_speisekarte"])
-        else:
-            return jsonify({"error": "Unsupported Media Type"}), 415
+        raw_data = request.get_json()
+        if isinstance(raw_data, str):
+            raw_data = json.loads(raw_data)
 
-        # Falls raw_data eine Liste ist, dann setze sie direkt als updated_speisekarte
-        if isinstance(raw_data, list):
-            updated_speisekarte = raw_data
-        else:
-            updated_speisekarte = raw_data.get("updated_speisekarte", [])
+        updated_speisekarte = raw_data.get("updated_speisekarte", [])
 
         # Bestehendes Dokument öffnen
-        file = request.files.get("file")
-        if not file:
-            return jsonify({"error": "No file provided!"}), 400
-        
+        file = request.files["file"]
         doc = Document(file)
 
-        # Bestehenden Text entfernen
+        # Bestehenden Text leeren
         for para in doc.paragraphs:
-            for run in para.runs:
-                run.text = ""
-                
-        
-        # Alle leeren Absätze sammeln
-        empty_paragraphs = [p for p in doc.paragraphs if not any(run.text.strip() for run in p.runs)]
+            para.clear()
 
-        # Leere Absätze aus dem Dokument entfernen
-        for p in empty_paragraphs:
-            p._element.getparent().remove(p._element)
-
-        # Aktualisierten Text in bestehende Paragraphs einfügen
-        current_para = None  # Aktueller Absatz speichern
-
+        # Aktualisierte Speisekarte einfügen
+        doc.paragraphs.clear()  # Vorherige Absätze entfernen
         for item in updated_speisekarte:
-            # Falls es ein Paragraph ist oder der Absatz nicht existiert, neuen Absatz beginnen
-            if current_para is None or item["type"] == "paragraph":
-                current_para = doc.add_paragraph()
-    
-            run = current_para.add_run(item["text"])
-            run.bold = item["style"]["bold"]
-            run.italic = item["style"]["italic"]
-            run.underline = item["style"]["underline"]
-            run.font.name = item["style"]["font"]
-            run.font.size = Pt(item["style"]["size"])
+            para = doc.add_paragraph()
+            
+            if item.get("is_empty", False):  
+                para.add_run("")  # Leere Zeile
+                continue
+            
+            for run_data in item.get("runs", []):
+                run = para.add_run(run_data["text"])
+                run.bold = run_data["style"]["bold"]
+                run.italic = run_data["style"]["italic"]
+                run.underline = run_data["style"]["underline"]
+                run.font.name = run_data["style"]["font"]
+                run.font.size = Pt(run_data["style"]["size"])
+                
+                if run_data["style"]["color"] != "#000000":
+                    rgb = run_data["style"]["color"].lstrip("#")
+                    run.font.color.rgb = RGBColor(int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
 
-            # Falls eine spezielle Farbe gesetzt ist, übernehmen
-            if item["style"]["color"] != "#000000":
-                rgb = item["style"]["color"].lstrip("#")
-                run.font.color.rgb = RGBColor(int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
-
-        # Datei im Speicher statt auf der Festplatte speichern
+        # Datei in den Speicher statt auf die Festplatte speichern
         output = BytesIO()
         doc.save(output)
         output.seek(0)
@@ -118,8 +94,6 @@ def generate_docx():
                          as_attachment=True, download_name="updated_menu.docx")
 
     except Exception as e:
-        print("\nERROR OCCURRED")
-        print(str(e))
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
