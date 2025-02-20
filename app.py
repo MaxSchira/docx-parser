@@ -13,21 +13,20 @@ def parse_docx():
     doc = Document(file)
     extracted_text = []
     
-    # Absatz-Zähler für ID-Zuweisung
     paragraph_counter = 0
 
     for para in doc.paragraphs:
-        paragraph_counter += 1  # ID für jeden Absatz
+        paragraph_counter += 1  
         paragraph_data = {
             "paragraph_id": paragraph_counter,
-            "is_empty": len(para.text.strip()) == 0,  # Prüfen, ob Absatz leer ist
-            "runs": []  # Enthält alle Runs dieses Absatzes
+            "is_empty": len(para.text.strip()) == 0,
+            "runs": []
         }
 
         for run in para.runs:
             text = run.text.strip()
             if not text:
-                continue  # Leere Runs ignorieren
+                continue  
 
             styles = {
                 "font": run.font.name if run.font and run.font.name else "Calibri",
@@ -48,25 +47,36 @@ def parse_docx():
 @app.route('/generate-docx', methods=['POST'])
 def generate_docx():
     try:
-        # JSON aus Form-Data auslesen
-        raw_data = json.loads(request.form["updated_speisekarte"])
+        # JSON aus Form-Data holen
+        updated_speisekarte_json = request.form.get("updated_speisekarte", "[]")
 
-        # DOCX-Datei aus der Form-Data extrahieren
-        file = request.files["file"]
+        # JSON-Daten parsen und sicherstellen, dass es eine Liste ist
+        try:
+            updated_speisekarte = json.loads(updated_speisekarte_json)
+            if not isinstance(updated_speisekarte, list):
+                raise ValueError("updated_speisekarte ist keine Liste.")
+        except json.JSONDecodeError:
+            return jsonify({"error": "Fehler beim Parsen von updated_speisekarte"}), 400
+
+        # Bestehendes DOCX-Dokument öffnen
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"error": "Keine Datei empfangen"}), 400
+
         doc = Document(file)
 
-        # Vorherigen Inhalt löschen
+        # Vorherigen Text entfernen
         for para in doc.paragraphs:
             for run in para.runs:
                 run.text = ""
 
-        # Neue Inhalte aus JSON-Daten einfügen
-        doc.paragraphs.clear()  # Alte Absätze entfernen
-        for item in raw_data:
+        # Aktualisierte Speisekarte einfügen
+        doc.paragraphs.clear()
+        for item in updated_speisekarte:
             para = doc.add_paragraph()
 
             if item.get("is_empty", False):  
-                para.add_run("")  # Leere Zeile
+                para.add_run("")  
                 continue
             
             for run_data in item.get("runs", []):
@@ -81,7 +91,7 @@ def generate_docx():
                     rgb = run_data["style"]["color"].lstrip("#")
                     run.font.color.rgb = RGBColor(int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
 
-        # Datei in den Speicher statt auf die Festplatte speichern
+        # Datei speichern und zurücksenden
         output = BytesIO()
         doc.save(output)
         output.seek(0)
