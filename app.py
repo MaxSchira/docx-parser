@@ -71,24 +71,30 @@ def generate_docx():
                 run.text = ""
 
         # Aktualisierte Speisekarte einfügen
-        doc.paragraphs.clear()
         for item in updated_speisekarte:
-            para = doc.add_paragraph()
-
-            if item.get("is_empty", False):  
-                para.add_run("")  
+            # Leere Absätze behandeln
+            if item.get("is_empty", False):
+                doc.add_paragraph("")  # Nur wenn nötig
                 continue
-            
-            for run_data in item.get("runs", []):
+    
+            # Falls Struktur direkt "text" enthält (wie Weinkarte), konvertiere in runs-Format
+            if "text" in item:
+                item = {"runs": [{"text": item["text"], "style": item.get("style", {})}]}
+
+            para = doc.add_paragraph()
+            for run_data in item["runs"]:
                 run = para.add_run(run_data["text"])
-                run.bold = run_data["style"]["bold"]
-                run.italic = run_data["style"]["italic"]
-                run.underline = run_data["style"]["underline"]
-                run.font.name = run_data["style"]["font"]
-                run.font.size = Pt(run_data["style"]["size"])
-                
-                if run_data["style"]["color"] != "#000000":
-                    rgb = run_data["style"]["color"].lstrip("#")
+        
+                # Formatierungen setzen
+                style = run_data.get("style", {})
+                run.bold = style.get("bold", False)
+                run.italic = style.get("italic", False)
+                run.underline = style.get("underline", False)
+                run.font.name = style.get("font", "Futura Medium")
+                run.font.size = Pt(style.get("size", 12))
+        
+                if "color" in style and style["color"] != "#000000":
+                    rgb = style["color"].lstrip("#")
                     run.font.color.rgb = RGBColor(int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
 
         # Datei speichern und zurücksenden
