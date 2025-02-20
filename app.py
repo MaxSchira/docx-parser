@@ -96,6 +96,9 @@ def generate_docx():
         doc.save(output)
         output.seek(0)
 
+        #debug log
+        print("Received updated_speisekarte:", updated_speisekarte) 
+        
         return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                          as_attachment=True, download_name="updated_menu.docx")
 
